@@ -1,5 +1,49 @@
 #include "mainwindow.h"
 
+#include <QRegularExpression>
+#include <QRegularExpressionMatchIterator>
+#include <QRegularExpressionMatch>
+
+
+static QVector<QPointF> stringToPointFVector(const QString& inputString) {
+    QVector<QPointF> points;
+    const QString numRegexPart = "([-+]?(?:[0-9]+\\.?[0-9]*|\\.[0-9]+)(?:[eE][-+]?[0-9]+)?)";
+    // This numRegexPart means:
+    // (                                      // Start capture group for a number
+    //   [-+]?                                // Optional sign + or -
+    //   (?:                                  // Non-capturing group for OR condition
+    //     [0-9]+\\.?[0-9]*                  //  - Digits, then optional decimal point and optional fractional digits (e.g., "123", "123.", "123.45")
+    //     |                                  //  OR
+    //     \\.[0-9]+                          //  - Decimal point followed by digits (e.g., ".5")
+    //   )
+    //   (?:[eE][-+]?[0-9]+)?                 // Optional exponent part (e.g., "e+5", "E-10")
+    // )                                      // End capture group
+
+    QRegularExpression pointRegex(QStringLiteral("\\(\\s*%1\\s*,\\s*%1\\s*\\)").arg(numRegexPart));
+    // Results in something like: \(\s*([-+]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][-+]?[0-9]+)?)\s*,\s*([-+]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][-+]?[0-9]+)?)\s*\)
+
+    QRegularExpressionMatchIterator i = pointRegex.globalMatch(inputString);
+    while (i.hasNext()) {
+        QRegularExpressionMatch match = i.next();
+        // We expect 3 captures: full match, x, y.
+        if (match.hasMatch() && match.capturedTexts().size() >= 3) {
+            bool okX, okY;
+            // Capture group 1 is x, group 2 is y.
+            double x = match.captured(1).toDouble(&okX);
+            double y = match.captured(2).toDouble(&okY);
+
+            if (okX && okY) {
+                points.append(QPointF(x, y)); // Or points.emplaceBack(x, y); in Qt 5.6+
+            } else {
+                qWarning() << "Warning: Could not convert pointF part:" << match.captured(0)
+                << "X part:" << match.captured(1) << "(ok:" << okX << ")"
+                << "Y part:" << match.captured(2) << "(ok:" << okY << ")";
+            }
+        }
+    }
+    return points;
+}
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
@@ -23,19 +67,34 @@ MainWindow::MainWindow(QWidget *parent)
     btnFit       = new QPushButton("适合窗口", centralWidget);
     btnReset     = new QPushButton("100%", centralWidget);
     btnClear     = new QPushButton("清除", centralWidget);
+    btnPaint     = new QPushButton("绘制", centralWidget);
+    rectCheck    = new QCheckBox("绘制矩形");
 
+    space = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
+
+    buttonLayout->addItem(space);
     buttonLayout->addWidget(btnLoad);
+    buttonLayout->addItem(space);
     buttonLayout->addWidget(btnZoomIn);
+    buttonLayout->addItem(space);
     buttonLayout->addWidget(btnZoomOut);
+    buttonLayout->addItem(space);
     buttonLayout->addWidget(btnFit);
+    buttonLayout->addItem(space);
     buttonLayout->addWidget(btnReset);
+    buttonLayout->addItem(space);
     buttonLayout->addWidget(btnClear);
+    buttonLayout->addItem(space);
+    buttonLayout->addWidget(btnPaint);
+    buttonLayout->addItem(space);
+    buttonLayout->addWidget(rectCheck);
+    buttonLayout->addItem(space);
     mainLayout->addLayout(buttonLayout);
 
     centralWidget->setLayout(mainLayout);
     this->setCentralWidget(centralWidget);
 
-    QObject::connect(btnLoad, &QPushButton::clicked, [this]() {
+    QObject::connect(btnLoad, &QPushButton::clicked, this, [this]() {
         QString fileName = QFileDialog::getOpenFileName(this,
                                                         "Open Image",
                                                         "", //起始目录
@@ -68,7 +127,17 @@ MainWindow::MainWindow(QWidget *parent)
         imageViewer->clearSelectedPoints();
     });
 
-    QObject::connect(imageViewer, &ImageViewWidget::pointsSelected,  // 发射者对象和信号
+    QObject::connect(btnPaint, &QPushButton::clicked, imageViewer, [this]() {
+        QString display_text = lineEdit->text();
+        QVector<QPointF> points = stringToPointFVector(display_text);
+        imageViewer->setPoints(points);
+    });
+
+    QObject::connect(rectCheck, &QCheckBox::checkStateChanged, imageViewer, [this]() {
+        imageViewer->set_rectangle_mode();
+    });
+
+    connect(imageViewer, &ImageViewWidget::pointsSelected,  // 发射者对象和信号
             this, &MainWindow::handlePointsSelected);     // 接收者对象和槽函数
 
 }
@@ -102,6 +171,7 @@ MainWindow::~MainWindow()
     delete lineEdit;
     delete btnClear;
     delete btnReset;
+    delete btnPaint;
     delete btnFit;
     delete btnZoomOut;
     delete btnZoomIn;

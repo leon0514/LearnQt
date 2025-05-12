@@ -9,6 +9,7 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
     MainWindow w;
+    w.setWindowIcon(QIcon(":/logo.ico"));
 
     // 加载 QSS 文件
     QFile styleFile(":/style.qss");

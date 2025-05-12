@@ -5,6 +5,7 @@
 #include <QGuiApplication>
 
 
+
 ImageViewWidget::ImageViewWidget(QWidget* parrent):QWidget(parrent), m_scaled_factor(1.0), m_is_dragging(false)
 {
 
@@ -104,7 +105,7 @@ void ImageViewWidget::mousePressEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::LeftButton)
     {
-        if (QGuiApplication::keyboardModifiers() & Qt::ControlModifier)
+        if (QGuiApplication::keyboardModifiers() & Qt::ControlModifier && !m_draw_rectangle)
         {
             QPointF imagePoint = widgetToImageCoordinates(event->pos());
             if (!imagePoint.isNull())
@@ -112,6 +113,38 @@ void ImageViewWidget::mousePressEvent(QMouseEvent* event)
                 m_selected_image_points.append(imagePoint);
                 emit pointsSelected(m_selected_image_points);
                 update();
+            }
+            event->accept();
+        }
+        else if(QGuiApplication::keyboardModifiers() & Qt::ControlModifier && m_draw_rectangle)
+        {
+            QPointF imagePoint = widgetToImageCoordinates(event->pos());
+            if (!imagePoint.isNull())
+            {
+                if (m_selected_image_points.size() == 0)
+                {
+                    m_selected_image_points.append(imagePoint);
+                    emit pointsSelected(m_selected_image_points);
+                    update();
+                }
+                else
+                {
+                    auto left_top_point = m_selected_image_points[0];
+                    clearSelectedPoints();
+                    float x0 = left_top_point.x();
+                    float y0 = left_top_point.y();
+                    float x1 = imagePoint.x();
+                    float y1 = imagePoint.y();
+                    m_selected_image_points.append(left_top_point);
+                    m_selected_image_points.append(QPointF(x1, y0));
+                    m_selected_image_points.append(QPointF(x1, y1));
+                    m_selected_image_points.append(QPointF(x0, y1));
+                    QVector<QPointF>().swap(m_rectangle_points);
+                    m_rectangle_points.append(left_top_point);
+                    m_rectangle_points.append(QPointF(x1, y1));
+                    emit pointsSelected(m_rectangle_points);
+                    update();
+                }
             }
             event->accept();
         }
@@ -258,6 +291,12 @@ void ImageViewWidget::resetZoom()
 }
 
 
+void ImageViewWidget::set_rectangle_mode()
+{
+    m_draw_rectangle = !m_draw_rectangle;
+}
+
+
 void ImageViewWidget::updateScaledPixmap()
 {
     if (m_original_pixmap.isNull())
@@ -326,6 +365,16 @@ void ImageViewWidget::clearSelectedPoints()
 {
     QVector<QPointF>().swap(m_selected_image_points);
     emit pointsSelected(m_selected_image_points);
+    update();
+}
+
+void ImageViewWidget::setPoints(const QVector<QPointF>& points)
+{
+    QVector<QPointF>().swap(m_selected_image_points);
+    for(const auto& p : points)
+    {
+        m_selected_image_points.push_back(p);
+    }
     update();
 }
 

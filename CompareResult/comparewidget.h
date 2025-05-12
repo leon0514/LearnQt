@@ -4,11 +4,13 @@
 #include <QWidget>
 
 #include "ImageViewWidget.hpp"
+#include "ToggleSwitch.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QLineEdit>
+#include <QCheckBox>
 #include <QFileDialog> // 用于打开文件对话框
 #include <QScrollArea> // 可选，如果图片非常大，可以放在滚动区域
 
@@ -34,7 +36,7 @@ private:
     QPushButton  *btnLoadGtXmlDir = nullptr;
     QPushButton  *btnLoadDtXmlDir = nullptr;
     QPushButton  *btnCompare = nullptr;
-    QPushButton  *btnFilterTp = nullptr;
+    QCheckBox    *checkBoxShow = nullptr;
     QProgressBar *progressBar = nullptr;
 
     QPushButton  *btnPre = nullptr;

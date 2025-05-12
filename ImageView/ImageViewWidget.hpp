@@ -36,6 +36,10 @@ public:
 
     void clearSelectedPoints();
 
+    void setPoints(const QVector<QPointF>& points);
+
+    void set_rectangle_mode();
+
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
@@ -49,10 +53,12 @@ private:
     QPixmap m_scaled_pixmap;
     double  m_scaled_factor;
     bool    m_is_dragging;
+    bool    m_draw_rectangle = false;
     QPoint  m_last_mouse_point;
     QPointF m_image_offset;
 
     QVector<QPointF> m_selected_image_points;
+    QVector<QPointF> m_rectangle_points;
 
 
 private:

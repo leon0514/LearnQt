@@ -160,7 +160,42 @@ CompareWidget::CompareWidget(QWidget *parent)
     btnLoadGtXmlDir = new QPushButton("GT xml 路径", centralWidget);
     btnLoadDtXmlDir = new QPushButton("DT xml 路径", centralWidget);
     btnCompare      = new QPushButton("对比", centralWidget);
-    btnFilterTp     = new QPushButton("当前显示TP标签", centralWidget);
+    // btnFilterTp  = new QPushButton("当前显示TP标签", centralWidget);
+    checkBoxShow    = new QCheckBox("当前显示TP", centralWidget);
+    checkBoxShow->setStyleSheet(
+        "QCheckBox::indicator:unchecked {"
+        "    background-color: #4CAF50; /* 未选中时的背景色 (不亮 - 浅灰色) */"
+        "    border: 1px solid #A0A0A0; /* 未选中时的边框 */"
+        "    width: 15px;               /* 指示器宽度 */"
+        "    height: 15px;              /* 指示器高度 */"
+        "    border-radius: 3px;        /* 可选：圆角 */"
+        "}"
+        "QCheckBox::indicator:checked {"
+        "    background-color: #E0E0E0; /* 选中时的背景色 (亮 - 绿色) */"
+        "    border: 1px solid #A0A0A0; /* 选中时的边框 */"
+        "    /* 如果你想用一张图片作为勾选标记，可以这样: */"
+        "    /* image: url(:/my_icons/checked_mark.png); */"
+        "}"
+        "QCheckBox::indicator:unchecked:hover {"
+        "    border: 1px solid #707070; /* 鼠标悬停在未选中指示器上 */"
+        "}"
+        "QCheckBox::indicator:checked:hover {"
+        "    border: 1px solid #2E7D32; /* 鼠标悬停在选中指示器上 */"
+        "}"
+        "QCheckBox {"
+        "    spacing: 5px; /* 指示器和文本之间的间距 */"
+        "    color: #333333; /* 文本颜色 */"
+        "    font-size: 14px;"
+        "}"
+        "QCheckBox:disabled {" // 可选：禁用时的样式
+        "    color: #A0A0A0;"
+        "}"
+        "QCheckBox::indicator:disabled {" // 可选：禁用时指示器的样式
+        "    background-color: #F0F0F0;"
+        "    border: 1px solid #C0C0C0;"
+        "}"
+        );
+
     progressBar     = new QProgressBar(centralWidget);
     progressBar->setStyleSheet(
         "QProgressBar {"
@@ -192,7 +227,7 @@ CompareWidget::CompareWidget(QWidget *parent)
     topLayout->addWidget(btnLoadGtXmlDir);
     topLayout->addWidget(btnLoadDtXmlDir);
     topLayout->addWidget(btnCompare);
-    topLayout->addWidget(btnFilterTp);
+    topLayout->addWidget(checkBoxShow);
     topLayout->addWidget(progressBar);
     topLayout->addItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
 
@@ -301,15 +336,15 @@ CompareWidget::CompareWidget(QWidget *parent)
         }
     });
 
-    QObject::connect(btnFilterTp, &QPushButton::clicked, this, [this]() {
+    QObject::connect(checkBoxShow, &QCheckBox::checkStateChanged, this, [this]() {
         show_tp = !show_tp;
         if (show_tp)
         {
-            btnFilterTp->setText("当前显示TP标签");
+            checkBoxShow->setText("当前显示TP");
         }
         else
         {
-            btnFilterTp->setText("当前不显示TP标签");
+            checkBoxShow->setText("当前不显示TP");
         }
         if (image_list.size() > current_index && dt_xml_list.size() > 0 && gt_xml_list.size() > 0)
         {

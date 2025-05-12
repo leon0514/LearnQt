@@ -5,6 +5,7 @@
 #include "ImageViewWidget.hpp"
 #include <QVBoxLayout>
 #include <QPushButton>
+#include <QCheckBox>
 #include <QLineEdit>
 #include <QFileDialog> // 用于打开文件对话框
 #include <QScrollArea> // 可选，如果图片非常大，可以放在滚动区域
@@ -29,6 +30,10 @@ private:
     QPushButton *btnFit = nullptr;
     QPushButton *btnReset = nullptr;
     QPushButton *btnClear = nullptr;
+    QPushButton *btnPaint = nullptr;
+    QCheckBox   *rectCheck = nullptr;
+
+    QSpacerItem *space = nullptr;
 
     QLineEdit   *lineEdit = nullptr;
 
