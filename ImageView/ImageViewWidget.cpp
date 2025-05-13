@@ -142,6 +142,7 @@ void ImageViewWidget::mousePressEvent(QMouseEvent* event)
     if (event->button() == Qt::LeftButton)
     {
         m_is_dragging_point = false; // 重置点拖动状态
+        m_is_dragging_polygon = false;
         m_dragged_point_index = -1;
 
         QPoint clickPosWidget = event->pos();
@@ -362,11 +363,42 @@ void ImageViewWidget::mouseMoveEvent(QMouseEvent *event)
 
 void ImageViewWidget::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton && m_is_dragging)
+    if (event->button() == Qt::LeftButton)
     {
-        m_is_dragging = false;
-        setCursor(Qt::ArrowCursor);
-        event->accept();
+        bool was_any_drag_active = false;
+
+        if (m_is_dragging)
+        {
+            m_is_dragging = false;
+            was_any_drag_active = true;
+        }
+        if (m_is_dragging_point)
+        {
+            m_is_dragging_point = false;
+            // m_dragged_point_index = -1; // Already reset at the start of mousePressEvent,
+            // but good practice to ensure it's invalid when not dragging a point.
+            // Let's ensure it's reset here too for clarity.
+            m_dragged_point_index = -1;
+            was_any_drag_active = true;
+        }
+        if (m_is_dragging_polygon)
+        {
+            m_is_dragging_polygon = false;
+            was_any_drag_active = true;
+        }
+
+        if (was_any_drag_active)
+        {
+            setCursor(Qt::ArrowCursor); // Reset to default cursor
+            event->accept();
+        }
+        else
+        {
+            // If no drag was active, it might have been a simple click.
+            // Depending on your application's needs, you might accept or ignore.
+            // If click-without-drag has no specific action on release, ignoring is fine.
+            event->ignore();
+        }
     }
     else
     {
