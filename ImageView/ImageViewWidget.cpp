@@ -6,9 +6,9 @@
 
 
 
-ImageViewWidget::ImageViewWidget(QWidget* parrent):QWidget(parrent), m_scaled_factor(1.0), m_is_dragging(false)
+ImageViewWidget::ImageViewWidget(QWidget* parrent):QWidget(parrent), m_scaled_factor(1.0), m_is_dragging(false), m_is_dragging_point(false), m_dragged_point_index(-1)
 {
-
+    setMouseTracking(true);
 }
 
 ImageViewWidget::~ImageViewWidget()
@@ -32,29 +32,47 @@ void ImageViewWidget::paintEvent(QPaintEvent *event)
     painter.drawPixmap(x, y, m_scaled_pixmap);
 
     // Draw selected points and region
-    if (!m_selected_image_points.isEmpty()) {
-        painter.setPen(QPen(Qt::red, 2)); // Pen for points and polygon outline
+    if (!m_selected_image_points.isEmpty())
+    {
+        const QColor normalPointColor = Qt::red;
+        const QColor draggingPointColor = Qt::yellow; // 或者 Qt::green, Qt::magenta 等醒目的颜色
+        const QColor polygonLineColor = Qt::cyan;
+        const QColor polygonFillColor = QColor(0, 0, 255, 100); // 半透明蓝色
+        const QColor polygonOutlineColor = Qt::blue;
+        const int normalPointSize = 3;
+        const int draggingPointSize = 5; // 让拖动的点更大更醒目 (可选)
 
+        painter.setPen(QPen(Qt::red, 2)); // Pen for points and polygon outline
         QVector<QPointF> widgetPoints;
-        for (const QPointF& imgPoint : m_selected_image_points) {
+        for (int i = 0; i < m_selected_image_points.size(); ++i) {
+            const QPointF& imgPoint = m_selected_image_points[i];
             QPointF widgetPt = imageToWidgetCoordinates(imgPoint);
             widgetPoints.append(widgetPt);
-            painter.drawEllipse(widgetPt, 3, 3); // Draw a small circle for each point
+
+            // 检查当前点是否是正在被拖动的点
+            bool isBeingDragged = m_is_dragging_point && (i == m_dragged_point_index);
+
+            // 根据是否在拖动选择颜色和大小
+            QColor currentPointColor = isBeingDragged ? draggingPointColor : normalPointColor;
+            int currentPointSize = isBeingDragged ? draggingPointSize : normalPointSize;
+
+            painter.setPen(QPen(currentPointColor, 2)); // 设置点的轮廓颜色和宽度
+            painter.setBrush(QBrush(currentPointColor)); // 设置点的填充颜色
+            painter.drawEllipse(widgetPt, currentPointSize, currentPointSize); // 绘制点
         }
 
+        // --- 绘制连接线 ---
         if (widgetPoints.size() >= 2) {
-            // Draw lines connecting the points
-            painter.setPen(QPen(Qt::cyan, 1, Qt::DashLine));
+            painter.setPen(QPen(polygonLineColor, 1, Qt::DashLine)); // 重置画笔用于画线
+            painter.setBrush(Qt::NoBrush); // 线条不需要填充
             painter.drawPolyline(QPolygonF(widgetPoints));
         }
 
+        // --- 绘制多边形 ---
         if (widgetPoints.size() >= 3) {
-            // Draw the filled polygon
             QPolygonF polygon(widgetPoints);
-            QColor fillColor = Qt::blue;
-            fillColor.setAlpha(100); // Semi-transparent fill
-            painter.setBrush(QBrush(fillColor));
-            painter.setPen(QPen(Qt::blue, 2)); // Outline for the polygon
+            painter.setBrush(QBrush(polygonFillColor)); // 设置填充
+            painter.setPen(QPen(polygonOutlineColor, 2)); // 设置轮廓线
             painter.drawPolygon(polygon);
         }
     }
@@ -105,6 +123,32 @@ void ImageViewWidget::mousePressEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::LeftButton)
     {
+        m_is_dragging_point = false; // 重置点拖动状态
+        m_dragged_point_index = -1;
+
+        // --- 新增：检查是否点击到某个点 ---
+        QPoint clickPos = event->pos();
+        for (int i = 0; i < m_selected_image_points.size(); ++i) {
+            QPointF pointInWidget = imageToWidgetCoordinates(m_selected_image_points[i]);
+            if (!pointInWidget.isNull()) {
+                // 计算点击位置和点在窗口坐标系下的距离
+                QPointF delta = clickPos - pointInWidget;
+                double distance = std::sqrt(QPointF::dotProduct(delta, delta));
+
+                if (distance <= m_hit_radius_pixels) {
+                    // 命中了点！开始拖动这个点
+                    m_is_dragging_point = true;
+                    m_dragged_point_index = i;
+                    m_last_mouse_point = clickPos; // 记录起始点，也可用于计算位移
+                    setCursor(Qt::SizeAllCursor);  // 设置拖动点的光标样式
+                    update(); // 可能需要更新视觉效果（例如高亮被选中的点）
+                    event->accept();
+                    return; // 找到了要拖动的点，处理完毕
+                }
+            }
+        }
+        // --- 结束新增 ---
+
         if (QGuiApplication::keyboardModifiers() & Qt::ControlModifier && !m_draw_rectangle)
         {
             QPointF imagePoint = widgetToImageCoordinates(event->pos());
@@ -174,7 +218,30 @@ void ImageViewWidget::mousePressEvent(QMouseEvent* event)
 
 void ImageViewWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    if (m_is_dragging && (event->buttons() & Qt::LeftButton))
+    // --- 新增：处理点的拖动 ---
+    if (m_is_dragging_point && (event->buttons() & Qt::LeftButton))
+    {
+        if (m_dragged_point_index >= 0 && m_dragged_point_index < m_selected_image_points.size())
+        {
+            // 将当前鼠标位置（窗口坐标）转换为图像坐标
+            QPointF newImagePoint = widgetToImageCoordinates(event->pos());
+
+            if (!newImagePoint.isNull()) {
+                // 更新被拖动点在图像坐标系中的位置
+                m_selected_image_points[m_dragged_point_index] = newImagePoint;
+
+                // 不需要 m_last_mouse_point 更新，因为我们直接用当前鼠标位置转换
+                // m_last_mouse_point = event->pos(); // 如果需要基于delta移动则取消注释
+
+                update(); // 触发重绘以显示点的新位置
+                emit pointsSelected(m_selected_image_points); // 实时发送信号（可选）
+                event->accept();
+                return; // 点拖动事件已处理
+            }
+        }
+    }
+    // --- 结束新增 ---
+    else if (m_is_dragging && (event->buttons() & Qt::LeftButton))
     {
         QPoint current_mouse_pos = event->pos();
         QPointF delta = current_mouse_pos - m_last_mouse_point;

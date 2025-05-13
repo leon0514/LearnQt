@@ -137,7 +137,7 @@ MainWindow::MainWindow(QWidget *parent)
         imageViewer->set_rectangle_mode();
     });
 
-    connect(imageViewer, &ImageViewWidget::pointsSelected,  // 发射者对象和信号
+    QObject::connect(imageViewer, &ImageViewWidget::pointsSelected,  // 发射者对象和信号
             this, &MainWindow::handlePointsSelected);     // 接收者对象和槽函数
 
 }

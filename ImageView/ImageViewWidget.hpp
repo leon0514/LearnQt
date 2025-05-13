@@ -57,6 +57,10 @@ private:
     QPoint  m_last_mouse_point;
     QPointF m_image_offset;
 
+    bool m_is_dragging_point;       // 标记是否正在拖动一个点
+    int m_dragged_point_index;      // 正在被拖动的点在 m_selected_image_points 中的索引
+    const int m_hit_radius_pixels = 8; // 点的拾取半径（像素）
+
     QVector<QPointF> m_selected_image_points;
     QVector<QPointF> m_rectangle_points;
 
