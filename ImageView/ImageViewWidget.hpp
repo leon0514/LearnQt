@@ -61,6 +61,9 @@ private:
     int m_dragged_point_index;      // 正在被拖动的点在 m_selected_image_points 中的索引
     const int m_hit_radius_pixels = 8; // 点的拾取半径（像素）
 
+    bool m_is_dragging_polygon; // 新增：标记是否正在拖动整个多边形
+    QPointF m_drag_start_image_pos;
+
     QVector<QPointF> m_selected_image_points;
     QVector<QPointF> m_rectangle_points;
 
