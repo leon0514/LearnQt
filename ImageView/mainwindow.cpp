@@ -70,6 +70,9 @@ MainWindow::MainWindow(QWidget *parent)
     btnPaint     = new QPushButton("绘制", centralWidget);
     rectCheck    = new QCheckBox("绘制矩形");
 
+    QList<QPushButton*> buttons;
+    buttons << btnLoad << btnZoomIn << btnZoomOut << btnFit << btnReset << btnClear << btnPaint;
+
     space = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
 
     buttonLayout->addItem(space);
@@ -93,6 +96,33 @@ MainWindow::MainWindow(QWidget *parent)
 
     centralWidget->setLayout(mainLayout);
     this->setCentralWidget(centralWidget);
+
+    int maxWidth = 0;
+    int maxHeight = 0;
+
+    for (QPushButton *button : std::as_const(buttons)) {
+        if (button) {
+            QSize hint = button->sizeHint(); // 获取按钮的建议大小
+            maxWidth = std::max(maxWidth, hint.width());
+            maxHeight = std::max(maxHeight, hint.height());
+        }
+    }
+
+    // 可选：增加一些padding
+    maxWidth += 10; // 例如，给宽度增加10像素的padding
+    // maxHeight += 5; // 例如，给高度增加5像素的padding
+
+    for (QPushButton *button : std::as_const(buttons)) {
+        if (button) {
+            button->setFixedSize(maxWidth, maxHeight);
+            // 或者，如果你只想统一宽度，高度自适应:
+            // button->setFixedWidth(maxWidth);
+            // 或者，如果你只想统一高度，宽度自适应:
+            // button->setFixedHeight(maxHeight);
+            // 或者，设置为最小尺寸:
+            // button->setMinimumSize(maxWidth, maxHeight);
+        }
+    }
 
     QObject::connect(btnLoad, &QPushButton::clicked, this, [this]() {
         QString fileName = QFileDialog::getOpenFileName(this,
@@ -135,6 +165,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     QObject::connect(rectCheck, &QCheckBox::checkStateChanged, imageViewer, [this]() {
         imageViewer->set_rectangle_mode();
+        imageViewer->clearSelectedPoints();
     });
 
     QObject::connect(imageViewer, &ImageViewWidget::pointsSelected,  // 发射者对象和信号

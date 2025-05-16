@@ -49,49 +49,73 @@ void ImageViewWidget::paintEvent(QPaintEvent *event)
     painter.drawPixmap(x, y, m_scaled_pixmap);
 
     // Draw selected points and region
-    if (!m_selected_image_points.isEmpty())
-    {
-        const QColor normalPointColor = Qt::red;
-        const QColor draggingPointColor = Qt::yellow; // 或者 Qt::green, Qt::magenta 等醒目的颜色
-        const QColor polygonLineColor = Qt::cyan;
-        const QColor polygonFillColor = QColor(0, 0, 255, 100); // 半透明蓝色
-        const QColor polygonOutlineColor = Qt::blue;
-        const int normalPointSize = 3;
-        const int draggingPointSize = 5; // 让拖动的点更大更醒目 (可选)
+    // --- 定义点的颜色和大小 ---
+    const QColor firstPointColor = Qt::green;       // 起始点颜色
+    const QColor lastPointColor = Qt::white;         // 结束点颜色
+    const QColor intermediatePointColor = Qt::red;  // 中间点颜色
+    const QColor draggingPointColor = Qt::yellow;   // 正在拖动的点颜色
+    const QColor polygonLineColor = Qt::cyan;
+    const QColor polygonFillColor = QColor(0, 0, 255, 100); // 半透明蓝色
+    const QColor polygonOutlineColor = Qt::blue;
 
-        painter.setPen(QPen(Qt::red, 2)); // Pen for points and polygon outline
-        QVector<QPointF> widgetPoints;
-        for (int i = 0; i < m_selected_image_points.size(); ++i) {
-            const QPointF& imgPoint = m_selected_image_points[i];
-            QPointF widgetPt = imageToWidgetCoordinates(imgPoint);
-            widgetPoints.append(widgetPt);
+    const int normalPointSize = 4;        // 普通点大小
+    const int specialPointSize = 5;       // 首尾点或拖动点的大小（可以比普通点稍大）
+    const int draggingPointSize = 6;      // 拖动点可以更大更醒目
 
-            // 检查当前点是否是正在被拖动的点
-            bool isBeingDragged = m_is_dragging_point && (i == m_dragged_point_index);
 
-            // 根据是否在拖动选择颜色和大小
-            QColor currentPointColor = isBeingDragged ? draggingPointColor : normalPointColor;
-            int currentPointSize = isBeingDragged ? draggingPointSize : normalPointSize;
+    QVector<QPointF> widgetPoints;
+    for (int i = 0; i < m_selected_image_points.size(); ++i) {
+        const QPointF& imgPoint = m_selected_image_points[i];
+        QPointF widgetPt = imageToWidgetCoordinates(imgPoint);
+        widgetPoints.append(widgetPt);
 
-            painter.setPen(QPen(currentPointColor, 2)); // 设置点的轮廓颜色和宽度
-            painter.setBrush(QBrush(currentPointColor)); // 设置点的填充颜色
-            painter.drawEllipse(widgetPt, currentPointSize, currentPointSize); // 绘制点
+        QColor currentPointColor;
+        int currentPointSize = normalPointSize;
+
+        bool isBeingDragged = m_is_dragging_point && (i == m_dragged_point_index);
+
+        if (isBeingDragged) {
+            currentPointColor = draggingPointColor;
+            currentPointSize = draggingPointSize;
+        } else if (i == 0) { // 第一个点
+            currentPointColor = firstPointColor;
+            currentPointSize = specialPointSize;
+        } else if (i == m_selected_image_points.size() - 1 && m_selected_image_points.size() > 1) { // 最后一个点 (且不止一个点时)
+            currentPointColor = lastPointColor;
+            currentPointSize = specialPointSize;
+        } else { // 中间点
+            currentPointColor = intermediatePointColor;
+            currentPointSize = normalPointSize;
         }
 
-        // --- 绘制连接线 ---
-        if (widgetPoints.size() >= 2) {
-            painter.setPen(QPen(polygonLineColor, 1, Qt::DashLine)); // 重置画笔用于画线
-            painter.setBrush(Qt::NoBrush); // 线条不需要填充
-            painter.drawPolyline(QPolygonF(widgetPoints));
-        }
+        // 如果只有一个点，它既是首也是尾，按首点颜色处理 (已被 i == 0 覆盖)
+        // 如果你希望只有一个点时有特殊颜色，可以添加条件：
+        // if (m_selected_image_points.size() == 1) {
+        // currentPointColor = Qt::magenta; // Example: single point color
+        // currentPointSize = specialPointSize;
+        // }
 
-        // --- 绘制多边形 ---
-        if (widgetPoints.size() >= 3) {
-            QPolygonF polygon(widgetPoints);
-            painter.setBrush(QBrush(polygonFillColor)); // 设置填充
-            painter.setPen(QPen(polygonOutlineColor, 2)); // 设置轮廓线
-            painter.drawPolygon(polygon);
-        }
+
+        painter.setPen(QPen(currentPointColor, 2)); // 点的轮廓颜色和宽度
+        painter.setBrush(QBrush(currentPointColor));   // 点的填充颜色
+        painter.drawEllipse(widgetPt, currentPointSize, currentPointSize); // 绘制点
+    }
+
+    // --- 绘制连接线 ---
+    // 只有当点的数量大于等于2时才绘制连接线
+    if (widgetPoints.size() >= 2) {
+        painter.setPen(QPen(polygonLineColor, 1, Qt::DashLine)); // 重置画笔用于画线
+        painter.setBrush(Qt::NoBrush); // 线条不需要填充
+        painter.drawPolyline(QPolygonF(widgetPoints));
+    }
+
+    // --- 绘制多边形 ---
+    // 只有当点的数量大于等于3时才绘制填充的多边形
+    if (widgetPoints.size() >= 3) {
+        QPolygonF polygon(widgetPoints);
+        painter.setBrush(QBrush(polygonFillColor)); // 设置填充
+        painter.setPen(QPen(polygonOutlineColor, 2)); // 设置轮廓线
+        painter.drawPolygon(polygon);
     }
 }
 
@@ -139,7 +163,7 @@ void ImageViewWidget::wheelEvent(QWheelEvent *event)
 
 void ImageViewWidget::mousePressEvent(QMouseEvent* event)
 {
-    if (event->button() == Qt::LeftButton)
+    if (event->button() == Qt::LeftButton && !QGuiApplication::keyboardModifiers())
     {
         m_is_dragging_point = false; // 重置点拖动状态
         m_is_dragging_polygon = false;
@@ -183,68 +207,68 @@ void ImageViewWidget::mousePressEvent(QMouseEvent* event)
                 return;
             }
         }
-
-        if (QGuiApplication::keyboardModifiers() & Qt::ControlModifier && !m_draw_rectangle)
+        m_is_dragging = true;
+        m_last_mouse_point = event->pos();
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+    }
+    else if (QGuiApplication::keyboardModifiers() & Qt::ControlModifier && !m_draw_rectangle)
+    {
+        QPointF imagePoint = widgetToImageCoordinates(event->pos());
+        if (!imagePoint.isNull())
         {
-            QPointF imagePoint = widgetToImageCoordinates(event->pos());
-            if (!imagePoint.isNull())
+            if (isPointInImageBounds(imagePoint, m_original_pixmap))
             {
-                if (isPointInImageBounds(imagePoint, m_original_pixmap))
-                {
-                    m_selected_image_points.append(imagePoint);
-                    emit pointsSelected(m_selected_image_points);
-                    update();
-                }
+                m_selected_image_points.append(imagePoint);
+                emit pointsSelected(m_selected_image_points);
+                update();
             }
-            event->accept();
         }
-        else if(QGuiApplication::keyboardModifiers() & Qt::ControlModifier && m_draw_rectangle)
+        event->accept();
+    }
+    else if(QGuiApplication::keyboardModifiers() & Qt::ControlModifier && m_draw_rectangle)
+    {
+        QPointF imagePoint = widgetToImageCoordinates(event->pos());
+        if (!imagePoint.isNull())
         {
-            QPointF imagePoint = widgetToImageCoordinates(event->pos());
-            if (!imagePoint.isNull())
+            QPointF clampedImagePoint = clampPointToImageBounds(imagePoint, m_original_pixmap);
+            if (m_selected_image_points.size() == 0)
             {
-                QPointF clampedImagePoint = clampPointToImageBounds(imagePoint, m_original_pixmap);
-                if (m_selected_image_points.size() == 0)
-                {
-                    m_selected_image_points.append(clampedImagePoint);
-                    emit pointsSelected(m_selected_image_points);
-                    update();
-                }
-                else
-                {
-                    auto left_top_point = m_selected_image_points[0];
-                    clearSelectedPoints();
-                    float x0 = left_top_point.x();
-                    float y0 = left_top_point.y();
-                    float x1 = clampedImagePoint.x();
-                    float y1 = clampedImagePoint.y();
-                    m_selected_image_points.append(left_top_point);
-                    m_selected_image_points.append(QPointF(x1, y0));
-                    m_selected_image_points.append(QPointF(x1, y1));
-                    m_selected_image_points.append(QPointF(x0, y1));
-                    QVector<QPointF>().swap(m_rectangle_points);
-                    m_rectangle_points.append(left_top_point);
-                    m_rectangle_points.append(clampedImagePoint);
-                    emit pointsSelected(m_rectangle_points);
-                    update();
-                }
+                m_selected_image_points.append(clampedImagePoint);
+                emit pointsSelected(m_selected_image_points);
+                update();
             }
-            event->accept();
+            else
+            {
+                auto left_top_point = m_selected_image_points[0];
+                clearSelectedPoints();
+                float x0 = left_top_point.x();
+                float y0 = left_top_point.y();
+                float x1 = clampedImagePoint.x();
+                float y1 = clampedImagePoint.y();
+                m_selected_image_points.append(left_top_point);
+                m_selected_image_points.append(QPointF(x1, y0));
+                m_selected_image_points.append(QPointF(x1, y1));
+                m_selected_image_points.append(QPointF(x0, y1));
+                QVector<QPointF>().swap(m_rectangle_points);
+                m_rectangle_points.append(left_top_point);
+                m_rectangle_points.append(clampedImagePoint);
+                emit pointsSelected(m_rectangle_points);
+                update();
+            }
         }
-        else
-        {
-            // 普通左键点击：开始拖动
-            m_is_dragging = true;
-            m_last_mouse_point = event->pos();
-            setCursor(Qt::ClosedHandCursor);
-            event->accept();
-        }
+        event->accept();
     }
     else if (event->button() == Qt::RightButton)
     {
         if (m_selected_image_points.size() > 0)
         {
             m_selected_image_points.pop_back();
+            if (m_draw_rectangle && m_selected_image_points.size() > 0)
+            {
+                m_selected_image_points.pop_back();
+                m_selected_image_points.pop_back();
+            }
             emit pointsSelected(m_selected_image_points);
             update();
         }
@@ -259,7 +283,8 @@ void ImageViewWidget::mouseMoveEvent(QMouseEvent *event)
 {
     if (m_original_pixmap.isNull())
     {
-        if (m_is_dragging && (event->buttons() & Qt::LeftButton)) {
+        if (m_is_dragging && (event->buttons() & Qt::LeftButton))
+        {
             // 允许平移空画布
             QPoint current_mouse_pos = event->pos();
             QPointF delta = current_mouse_pos - m_last_mouse_point;
@@ -268,7 +293,9 @@ void ImageViewWidget::mouseMoveEvent(QMouseEvent *event)
             adjustOffset(); // adjustOffset 会处理 m_scaled_pixmap.isNull()
             update();
             event->accept();
-        } else {
+        }
+        else
+        {
             event->ignore();
         }
         return;
@@ -282,15 +309,37 @@ void ImageViewWidget::mouseMoveEvent(QMouseEvent *event)
             // 将当前鼠标位置（窗口坐标）转换为图像坐标
             QPointF newImagePoint = widgetToImageCoordinates(event->pos());
 
-            if (!newImagePoint.isNull()) {
+            if (!newImagePoint.isNull())
+            {
                 QPointF clampedNewImagePoint = clampPointToImageBounds(newImagePoint, m_original_pixmap);
-
                 m_selected_image_points[m_dragged_point_index] = clampedNewImagePoint;
+                if (!m_draw_rectangle)
+                {
+                    update(); // 触发重绘以显示点的新位置
+                    emit pointsSelected(m_selected_image_points); // 实时发送信号（可选）
+                    event->accept();
+                    return; // 点拖动事件已处理
+                }
+                else
+                {
+                    int opposite_point_index = (m_dragged_point_index + 2) % 4;
+                    QPointF oppositePoint = m_selected_image_points[opposite_point_index];
 
-                update(); // 触发重绘以显示点的新位置
-                emit pointsSelected(m_selected_image_points); // 实时发送信号（可选）
-                event->accept();
-                return; // 点拖动事件已处理
+                    float new_x0 = qMin(clampedNewImagePoint.x(), oppositePoint.x());
+                    float new_y0 = qMin(clampedNewImagePoint.y(), oppositePoint.y());
+                    float new_x1 = qMax(clampedNewImagePoint.x(), oppositePoint.x());
+                    float new_y1 = qMax(clampedNewImagePoint.y(), oppositePoint.y());
+                    clearSelectedPoints();
+                    m_selected_image_points.append(QPointF(new_x0, new_y0)); // 新的左上
+                    m_selected_image_points.append(QPointF(new_x1, new_y0)); // 新的右上
+                    m_selected_image_points.append(QPointF(new_x1, new_y1)); // 新的右下
+                    m_selected_image_points.append(QPointF(new_x0, new_y1)); // 新的左下
+                    QVector<QPointF>().swap(m_rectangle_points);
+                    m_rectangle_points.append(QPointF(new_x0, new_y0));
+                    m_rectangle_points.append(QPointF(new_x1, new_y1));
+                    emit pointsSelected(m_rectangle_points);
+                    update();
+                }
             }
         }
     }
@@ -312,35 +361,39 @@ void ImageViewWidget::mouseMoveEvent(QMouseEvent *event)
                 }
             }
 
-            if (all_points_will_be_in_bounds) { // 或者，你可以选择总是平移，然后对每个点进行clamp
-                for (int i = 0; i < m_selected_image_points.size(); ++i) {
+            if (all_points_will_be_in_bounds)
+            {
+                for (int i = 0; i < m_selected_image_points.size(); ++i)
+                {
                     m_selected_image_points[i] += deltaImage;
                 }
-            } else {
-                // 如果选择不允许拖出边界，可以尝试计算一个允许的最大delta
-                // 或者简单地不移动，或者将所有点都clamp到边界（这可能导致形状改变）
-                // 一个简单的处理是：如果任何一个点会出界，就不移动。
-                // 更复杂的：计算能移动的最大距离，使得所有点都在界内。
-
-                // 另一种策略：总是移动，然后在外部循环后对每个点进行clamp。
-                // 这种方式可能会导致图形在边缘被“压缩”或变形，如果多个点同时到达不同边界。
-                // 平移后再clamp每个点:
-                /*
-                for (int i = 0; i < m_selected_image_points.size(); ++i) {
-                    m_selected_image_points[i] = clampPointToImageBounds(m_selected_image_points[i] + deltaImage, m_original_pixmap);
-                }
-                */
-                // 最简单且保持形状的方式是：如果整体移动会导致出界，则不移动或计算允许的最大同步位移。
-                // 为了简单起见，如果会出界，我们这里先选择不移动：
-                // (上面的 all_points_will_be_in_bounds 已经处理了这个)
-                // 如果采用总是移动然后 clamp 的方式，删除 all_points_will_be_in_bounds 的检查。
-                // 我们这里采用 “如果会出界，则不移动” 的策略。
             }
-
-
             m_last_mouse_point = currentMouseWidgetPos; // 更新上一次的鼠标位置 (窗口坐标)
             update();
-            emit pointsSelected(m_selected_image_points); // 发送更新
+            if (m_draw_rectangle)
+            {
+                auto left_top_point = m_rectangle_points[0] + deltaImage;
+                auto right_bottom_point = m_rectangle_points[1] + deltaImage;
+                clearSelectedPoints();
+                float x0 = left_top_point.x();
+                float y0 = left_top_point.y();
+                float x1 = right_bottom_point.x();
+                float y1 = right_bottom_point.y();
+                m_selected_image_points.append(left_top_point);
+                m_selected_image_points.append(QPointF(x1, y0));
+                m_selected_image_points.append(QPointF(x1, y1));
+                m_selected_image_points.append(QPointF(x0, y1));
+                QVector<QPointF>().swap(m_rectangle_points);
+                m_rectangle_points.append(left_top_point);
+                m_rectangle_points.append(right_bottom_point);
+                emit pointsSelected(m_rectangle_points);
+                update();
+            }
+            else
+            {
+                emit pointsSelected(m_selected_image_points); // 发送更新
+            }
+
             event->accept();
             return;
         }
@@ -404,6 +457,7 @@ void ImageViewWidget::mouseReleaseEvent(QMouseEvent *event)
     {
         event->ignore();
     }
+    update();
 }
 
 bool ImageViewWidget::loadImage(const QString &image_path)
@@ -559,11 +613,7 @@ void ImageViewWidget::clearSelectedPoints()
 
 void ImageViewWidget::setPoints(const QVector<QPointF>& points)
 {
-    QVector<QPointF>().swap(m_selected_image_points);
-    for(const auto& p : points)
-    {
-        m_selected_image_points.push_back(p);
-    }
+    m_selected_image_points = points;
     update();
 }
 
