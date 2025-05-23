@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>count.ico</file>
+    </qresource>
+</RCC>
