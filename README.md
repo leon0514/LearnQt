@@ -15,3 +15,11 @@ Ctrl + 鼠标左键 选择点
 ## 说明
 赛博放生，功德+1
 ![电子放生小鸟](https://github.com/leon0514/LearnQt/blob/main/asserts/fly.png)
+
+
+# 护眼提醒
+## 说明
+屏幕会有护眼提醒
+![护眼提醒](https://github.com/leon0514/LearnQt/blob/main/asserts/eye0.png)
+![护眼提醒](https://github.com/leon0514/LearnQt/blob/main/asserts/eye1.png)
+![护眼提醒](https://github.com/leon0514/LearnQt/blob/main/asserts/eye2.png)
