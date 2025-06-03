@@ -3,6 +3,9 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatchIterator>
 #include <QRegularExpressionMatch>
+#include <QMenu>
+#include <QClipboard>
+#include <QApplication>
 
 
 static QVector<QPointF> stringToPointFVector(const QString& inputString) {
@@ -53,9 +56,21 @@ MainWindow::MainWindow(QWidget *parent)
     centralWidget = new QWidget(this);
     mainLayout    = new QVBoxLayout(centralWidget);
 
+    middleLayout = new QHBoxLayout();
+    horizontalSplitter = new QSplitter(centralWidget);
+    middleLayout->addWidget(horizontalSplitter);
+
     imageViewer   = new ImageViewWidget(centralWidget);
     imageViewer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    mainLayout->addWidget(imageViewer);
+
+    fileListWidget = new DynamicElidedListWidget(centralWidget);
+
+    horizontalSplitter->addWidget(imageViewer);
+    horizontalSplitter->addWidget(fileListWidget);
+    horizontalSplitter->setStretchFactor(0, 6);
+    horizontalSplitter->setStretchFactor(1, 1);
+
+    mainLayout->addLayout(middleLayout);
 
     lineEdit = new QLineEdit(centralWidget);
     mainLayout->addWidget(lineEdit);
@@ -124,13 +139,41 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
 
+
+    QObject::connect(fileListWidget,&QListWidget::doubleClicked,[=](){
+        QListWidgetItem *selectedItem = fileListWidget->currentItem();
+        if (selectedItem) {
+            // 执行你的操作
+            QString fullPath = selectedItem->data(Qt::UserRole).toString();
+            imageViewer->loadImage(fullPath);
+        }
+    });
+
     QObject::connect(btnLoad, &QPushButton::clicked, this, [this]() {
         QString fileName = QFileDialog::getOpenFileName(this,
                                                         "Open Image",
                                                         "", //起始目录
                                                         "Image Files (*.png *.jpg *.bmp *.jpeg *.gif)");
         if (!fileName.isEmpty()) {
-            if(!imageViewer->loadImage(fileName)){
+            if(imageViewer->loadImage(fileName))
+            {
+                QFontMetrics fm(fileListWidget->font());
+                // 您需要估算或获取列表项的可用宽度。
+                // fileListWidget->viewport()->width() 是一个起点，但可能需要减去边距、滚动条等。
+                // 为了简单起见，这里用一个固定值，或者您可以根据窗口大小动态调整。
+                int availableWidth = fileListWidget->viewport()->width() - 20; // 减去一些边距/滚动条宽度
+                if (availableWidth <= 50) availableWidth = 200; // 设置一个最小合理宽度
+
+                // Qt::ElideMiddle 看起来通常最好 ("C:/.../file.txt")
+                // Qt::ElideRight  ("C:/Users/Us...")
+                // Qt::ElideLeft   (".../Folder/file.txt")
+                QString elidedPath = fm.elidedText(fileName, Qt::ElideMiddle, availableWidth);
+
+                QListWidgetItem *item = new QListWidgetItem(elidedPath); // 显示省略后的路径
+                item->setToolTip(fileName); // 鼠标悬停时显示完整路径
+                item->setData(Qt::UserRole, fileName); // 存储完整路径
+
+                fileListWidget->addItem(item);
             }
         }
     });

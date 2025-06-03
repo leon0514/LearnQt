@@ -9,6 +9,8 @@
 #include <QLineEdit>
 #include <QFileDialog> // 用于打开文件对话框
 #include <QScrollArea> // 可选，如果图片非常大，可以放在滚动区域
+#include "DynamicElidedListWidget.h"
+#include <QSplitter>
 
 class MainWindow : public QMainWindow
 {
@@ -21,7 +23,11 @@ public:
 private:
     QWidget *centralWidget = nullptr;
     QVBoxLayout *mainLayout = nullptr;
+
+    QSplitter* horizontalSplitter = nullptr;
+    QHBoxLayout *middleLayout = nullptr;
     ImageViewWidget *imageViewer = nullptr;
+    DynamicElidedListWidget * fileListWidget = nullptr;
 
     QHBoxLayout *buttonLayout = nullptr;
     QPushButton *btnLoad = nullptr;
@@ -36,6 +42,8 @@ private:
     QSpacerItem *space = nullptr;
 
     QLineEdit   *lineEdit = nullptr;
+
+    QVector<QString> fileList;
 
 private slots: // 声明槽函数
     void handlePointsSelected(const QVector<QPointF>& points);
